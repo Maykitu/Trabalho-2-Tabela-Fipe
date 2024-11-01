@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEP and Fipe Search</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #333;
+    }
+    #cep-section, #fipe-section {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    label {
+      font-weight: bold;
+    }
+    input[type="text"] {
+      width: calc(100% - 120px);
+      padding: 8px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #cep-resultado, #fipe-resultado {
+      margin-top: 20px;
+    }
+    p {
+      margin: 5px 0;
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid #ccc;
+      margin: 20px 0;
+    }
+    .msg-success {
+      color: green;
+      font-weight: bold;
+    }
+    .msg-error {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Digite o CEP ou código Fipe:</h2>
+
+  <div id="cep-section">
+    <label for="cep">CEP: </label>
+    <input type="text" id="cep" placeholder="Ex: 01000-000">
+    <button id="exibeCep">Exibir Endereço</button>
+    <br><br>
+    <div id="cep-resultado"></div>
+  </div>
+
+  <div id="fipe-section">
+    <label for="fipe">Código Fipe: </label>
+    <input type="text" id="fipe" placeholder="Ex: 00142-3">
+    <button id="exibeValor">Exibir Valor</button>
+    <br><br>
+    <div id="fipe-resultado"></div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+      const cepApiUrl = 'https://brasilapi.com.br/api/cep/v2/';
+      const fipeApiUrl = 'https://brasilapi.com.br/api/fipe/preco/v1/';
+
+      // Handle CEP search
+      $("#exibeCep").click(function() {
+        const cep = $("#cep").val();
+
+        if (cep.trim() === '') {
+          alert('Por favor, digite um CEP válido.');
+          return;
+        }
+
+        $.get(cepApiUrl + cep, function(data, status) {
+          if (status === 'success') {
+            let html = '<p><b>Endereço:</b></p>';
+            html += '<p>Rua: ' + data['street'] + '</p>';
+            html += '<p>Bairro: ' + data['neighborhood'] + '</p>';
+            html += '<p>Cidade: ' + data['city'] + '</p>';
+            $("#cep-resultado").html(html); // Clear previous results
+          } else {
+            console.error('Error fetching CEP data:', status);
+            $("#cep-resultado").html('<p>CEP não encontrado.</p>');
+          }
+        });
+      });
+
+      // Handle Fipe search
+      $("#exibeValor").click(function() {
+        const fipe = $("#fipe").val();
+
+        if (fipe.trim() === '') {
+          alert('Por favor, digite um código Fipe válido.');
+          return;
+        }
+
+        $.get(fipeApiUrl + fipe, function(data, status) {
+          if (status === 'success') {
+            if (data.length === 0) {
+              $("#fipe-resultado").html('<p>Código Fipe não encontrado.</p>');
+              return;
+            }
+
+            const cepSection = $("#cep-resultado").html();
+            const cidade = cepSection.match(/Cidade:\s(.*)<\/p>/)[1];
+
+            let html = '';
+            let seguroLiberado = false;
+
+            data.forEach(veiculo => {
+              html += '<p><b>Marca:</b> ' + veiculo['marca'] + '</p>';
+              html += '<p><b>Modelo:</b> ' + veiculo['anoModelo'] + '</p>';
+              html += '<p><b>Valor:</b> ' + veiculo['valor'] + '</p>';
+              html += '<hr>';
+
+              const valorCarro = parseFloat(veiculo['valor'].replace(/[^\d,-]/g, '').replace(',', '.'));
+
+              if (cidade === 'Rio de Janeiro' && valorCarro > 30000) {
+                seguroLiberado = true;
+              }
+            });
+
+            if (seguroLiberado) {
+              html += '<p class="msg-success">Seu seguro foi liberado</p>';
+            } else {
+              html += '<p class="msg-error">Infelizmente o seguro não foi aceito, devido ao valor do seu carro</p>';
+            }
+
+            $("#fipe-resultado").html(html);
+          } else {
+            console.error('Error fetching Fipe data:', status);
+            $("#fipe-resultado").html('<p>Erro ao buscar dados.</p>');
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
